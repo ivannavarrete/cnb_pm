@@ -1,26 +1,24 @@
 
-%ifndef _IO_H
-%define _IO_H
+#ifndef _IO_H
+#define _IO_H
 
 
-%ifndef _IO_C
-extern request_io
-extern release_io
-extern check_io
-%endif
+extern int request_io(int start, int end, const char *dev_name);
+extern int release_io(int start, int end);
+extern int check_io(int start, int end);
+struct io_region *find_gap(struct io_region *root, int start, int end);
 
 
-%define MAX_IO_PORT		0xFFFF
-%define MAX_IO_REGIONS	127
+#define MAX_IO_PORT		0xFFFF
+#define MAX_IO_REGIONS	127
 
-%define IO_REGION_SS	0x10
-struc io_region
-	.lock:		resb 1
-	.start:		resd 1
-	.end:		resd 1
-	.dev:		resd 1
-	.next:		resd 1
-endstruc
+struct io_region {
+	char lock;
+	int start;
+	int end;
+	const char *dev_name;
+	struct io_region *next;
+};
 
 
-%endif
+#endif

@@ -3,6 +3,8 @@ INCLUDEDIR = ../../include/
 
 ASM = nasm
 ASMFLAGS = -f elf -i$(INCLUDEDIR)
+CC = gcc
+CFLAGS = -c -O2 -Wall -I$(INCLUDEDIR)
 
 
 OBJFILES = irq.o io.o dma.o desc.o idt.o console.o
@@ -13,14 +15,6 @@ all: $(OBJFILES)
 
 
 irq.o: irq.asm $(INCLUDEFILES)
-	$(ASM) $(ASMFLAGS) -o $@ $<
-
-
-io.o: io.asm $(INCLUDEFILES)
-	$(ASM) $(ASMFLAGS) -o $@ $<
-
-
-dma.o: dma.asm $(INCLUDEFILES)
 	$(ASM) $(ASMFLAGS) -o $@ $<
 
 

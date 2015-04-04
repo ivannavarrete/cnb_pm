@@ -65,7 +65,7 @@ release_irq:
 	mov		eax, [ebp+.irq]			; free irq line
 	mov		byte [irq_list+eax], 0
 	
-	mov		eax, -1
+	xor		eax, eax
 	leave
 	ret		4
 

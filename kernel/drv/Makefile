@@ -1,19 +1,20 @@
 
-INCLUDEDIR = ../../include/
+INCLUDEDIR = ../../include
 
-ASM = nasm
-ASMFLAGS = -f elf -i$(INCLUDEDIR)
+CC = gcc
+CFLAGS = -c -O2 -Wall -I$(INCLUDEDIR)
 
 
-OBJFILES = drivers.o
+OBJFILES = driver.o
 INCLUDEFILES = $(INCLUDEDIR)*.h
 
 
-all: $(OBJFILES)
+#all: $(OBJFILES)
+all:
 
 
-drivers.o: drivers.asm $(INCLUDEFILES)
-	$(ASM) $(ASMFLAGS) -o $@ $<
+#drivers.o: drivers.asm $(INCLUDEFILES)
+#	$(ASM) $(ASMFLAGS) -o $@ $<
 
 
 clean:

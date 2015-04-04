@@ -6,7 +6,7 @@
 
 %include "config.h"
 %include "descriptor.h"
-%include "sysdef.h"
+;%include "sysdef.h"
 %include "debug.h"
 
 
@@ -67,6 +67,17 @@ start:
 ; read with the proper amount of bytes. The one thing this routine can't do
 ; is to place the data at an arbitrary memory position.
 ;===============================================================================
+;
+; 2000-08-22
+;	This code has bugs. It seems that after reading a full track you should
+;	change cylinder, not head. Ironically, this bug was cancelled out by a
+;	bug in ReadSect. The bug there was that the 'mov ah, 2' instruction
+;	was outside the read loop. It would try to read sectors the first time
+;	but upon failure it would reset the disc controller and return to the
+;	read, still with ah=0, which would reset again and report no error.
+;	In short, even if the read fails the code doesn't notice.
+;	I am not 100% sure of the above ... This cnb version is abandoned anyway ...
+;
 LoadSys:
 	mov		di, 8					; load 512K from disk (8 read loops)
 
@@ -120,10 +131,9 @@ ReadSect:
 	push	ax, si
 	
 	mov		si, 4					; retry 4 times
-	; << NEXT INSTR SHOULD BE IN .read LOOP (?) >>
-	mov		ah, 0x02				; read sectors function
 .read:
 	; read sectors
+	mov		ah, 0x02
 	push	ax						; al can get fucked up sometimes, so save it
 	int		0x13
 	pop		ax

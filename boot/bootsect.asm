@@ -1,44 +1,26 @@
-
-; bootsector is responsible for loading and passing control to the os setup code
+; Bootsector is responsible for loading and passing control to the os setup
+; code.
 
 %include "config.h"
-	
+%include "debug.h"
+
+
 	bits 16
-	org 0x0
+	org 0
 
 	section .text
-; move bootsector code to a safe location 
 start:
-	mov		ax, BOOTSEG
-	mov		ds, ax
-	mov		ax, INITSEG
-	mov		es, ax
-	xor		di, di
-	xor		si, si
-	mov		cx, 0x50
-	cld
-	rep		movsd
-	jmp		INITSEG:safe
-
-; set up stack
-safe:
-	mov		ds, ax
-	cli
-	mov		ss, ax
-	mov		sp, 0xFFFF
-	sti
-	
-; load os loder into memory
-	mov		si, 4				; number of retries
+; load os loader into memory
+	mov		si, 4
 read:
-	xor		ah, ah				; reset disk controller
-	mov		dl, 0x80			; for both hd and fd
+	xor		ah, ah						; reset disc controller
+	xor		dl, dl						; floppy only
 	int		0x13
 
-	mov		ax, 0x0208			; sector read
-	mov		cx, 0x0002			; start at sector 2
-	xor		dx, dx				; drive 0 (floppy), head 0
-	mov		bx, SETUPSEG		; put loader after bootsector (9020:0000)
+	mov		ax, 0x020F					; read 15 sectors
+	mov		cx, 0x0002					; start at sector 2
+	xor		dx, dx						; drive 0 (floppy) head 0
+	mov		bx, SETUP_ADDR>>4
 	mov		es, bx
 	xor		bx, bx
 	int		0x13
@@ -49,13 +31,12 @@ read:
 
 ; pass control to os setup code
 ok:
-	jmp		SETUPSEG:0
+	jmp		SETUP_ADDR>>4:0
 
 ; halt system, reboot to recover
 halt:
-.loop:
-	jmp		.loop
+	jmp		$
 
-; zero the rest of the sector
-pad:
-times 512-$+start	db 0
+; zero rest of sector and set bsector mark
+end:		times 510-($-$$) db 0
+			dw 0xAA55

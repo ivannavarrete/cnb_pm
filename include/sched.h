@@ -4,11 +4,10 @@
 
 
 %define MAX_TASKS	10
-%define TSS_SIZE	108		; mandatory part is 104 bytes
 
 
+; mandatory part of the Task State Segment
 struc tss
-	; mandatory part of the Task State Segment
 	.link		resw	2
 	.esp0		resd	1
 	.ss0		resw	2
@@ -36,10 +35,7 @@ struc tss
 	.ldt		resw	2
 	.trap		resw	1
 	.iomap		resw	1
+endstruc
 
-	; OS specific data
-	.gdtidx		resd	1	; if this is changed to word, update CreateTask and
-endstruc					; others to use 'xor eax,eax; mov ax, [tss.gdt_sel]'
-							; or something similar
 
 %endif

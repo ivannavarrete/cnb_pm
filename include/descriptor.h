@@ -52,20 +52,14 @@
 %define D_CODE32	D_D32 | D_PY | D_SN | D_ST_C
 %define D_DATA16	D_B16 | D_PY | D_SN | D_ST_D
 %define D_DATA32	D_B32 | D_PY | D_SN | D_ST_D
-%define D_TSS16		D_PY | D_SY | D_ST_16 | D_ST_ATSS
-%define D_TSS32		D_PY | D_SY | D_ST_32 | D_ST_ATSS
-;%define D_LDT		...
 
 %define D_IGATE16	D_PY | D_SY | D_ST_16 | D_ST_IG
 %define D_IGATE32	D_PY | D_SY | D_ST_32 | D_ST_IG
 %define D_TRGATE16	D_PY | D_SY | D_ST_16 | D_ST_TRG
 %define D_TRGATE32	D_PY | D_SY | D_ST_32 | D_ST_TRG
-%define D_CGATE16	D_PY | D_SY | D_ST_16 | D_ST_CG
-%define D_CGATE32	D_PY | D_SY | D_ST_32 | D_ST_CG
-%define D_TSGATE	D_PY | D_SY | D_ST_TSG
 
 
-; Macro for easy definition of segment descriptors.
+; Macro for easy definition of descriptors.
 ; (%1)		segment base (32-bit)
 ; (%2)		segment limit (20-bit)
 ; (%3)		segment attributes (16-bit, packed to 12-bit in desc)
@@ -79,14 +73,14 @@
 %endmacro
 
 
-; Macro for easy definition of gate descriptors.
+; Macro for easy definition of Interrupt/Trap/Task gates.
 ; (%1)		segment selector (16-bit)
 ; (%2)		offset (32-bit)
 ; (%3)		flags
 %macro gate 3
 	dw	(%2) & 0xFFFF
 	dw	(%1)
-	db	0						; XXX not correct for call gate! (or is it?)
+	db	0
 	db	(%3) & 0xFF
 	dw	(%2)>>16
 %endmacro

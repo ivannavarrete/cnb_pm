@@ -10,17 +10,17 @@
 %include "config.h"
 
 
-global InitConsole:function
-global ClearScreen:function
-global ConsoleWrite:function
-global GotoXY:function
-global SetMode:function
-global ScrollUp:function
-global ScrollDown:function
+global InitConsole
+global ClearScreen
+global ConsoleWrite
+global GotoXY
+global SetMode
+global ScrollUp
+global ScrollDown
 
 
 	section .text
-;===[ InitConsole ]=============================================================
+;=== InitConsole ===============================================================
 ; int InitConsole(int scr_mode, int attr)
 ;===============================================================================
 ; need to implement mode setup
@@ -53,7 +53,7 @@ InitConsole:
 	ret		8
 
 
-;===[ ClearScreen ]=============================================================
+;=== ClearScreen ===============================================================
 ; void ClearScreen(void)
 ;===============================================================================
 ClearScreen:
@@ -70,7 +70,7 @@ ClearScreen:
 	ret
 
 
-;===[ ConsoleWrite ]============================================================
+;=== ConsoleWrite ==============================================================
 ; void ConsoleWrite(const char *str)
 ;===============================================================================
 ConsoleWrite:
@@ -135,7 +135,7 @@ ConsoleWrite:
 	ret		4
 
 
-;===[ GotoXY ]==================================================================
+;=== GotoXY ====================================================================
 ; void GotoXY(int x, int y)
 ;===============================================================================
 GotoXY:
@@ -155,7 +155,7 @@ GotoXY:
 	ret		8
 
 
-;===[ SetMode ]=================================================================
+;=== SetMode ===================================================================
 ; int SetMode(int src_mode, int attr)
 ;===============================================================================
 SetMode:
@@ -172,7 +172,7 @@ SetMode:
 	ret		8
 	
 
-;===[ ScrollUp ]================================================================
+;=== ScrollUp ==================================================================
 ; void ScrollUp(void)
 ;===============================================================================
 ; not implemented
@@ -181,7 +181,7 @@ ScrollUp:
 	ret
 	
 
-;===[ ScrollDown ]==============================================================
+;=== ScrollDown ================================================================
 ; void ScrollDown(void)
 ;===============================================================================
 ; not implemented

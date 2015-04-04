@@ -2,7 +2,7 @@
 INCLUDEDIR = ../../include/
 
 ASM = nasm
-ASMFLAGS = -f elf -P/usr/include/nasm/nasm.h -i$(INCLUDEDIR)
+ASMFLAGS = -f elf -i$(INCLUDEDIR)
 
 
 OBJFILES = mm.o

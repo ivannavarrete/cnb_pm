@@ -1,23 +1,43 @@
+/*
+ * Basic console output. All output to console in the kernel should be through
+ * this module (except for the console driver and debug macros of course).
+ * PrintB/W/D() are here until correcto formatting conversion is implemented
+ * in Printk().
+ */
 
-/* Routines for kernel output. All output to console in the kernel should be
- * through this module (except for the console 'driver' and debug macros).
- *
- * XXX This is to slow for kernel. Many times we do output in interrupt and
- * exception handlers as well as in time critical kernel sections. There
- * should be an alternative output mechanism for kernel, probably something
- * like the BSD message buffer. */
-
+/*#include <stdio.h>*/
 
 extern void ConsoleWrite(const char *str);
 
+int Printk(const char *str);
+char *Hex2Asc(char *buf, int b);
+void PrintB(int b);
+void PrintW(int w);
+void PrintD(int d);
 
+/*
+int main(void) {
+	Printk("test\x0A");
+	PrintB(0x55);
+	PrintB(0xAA);
+	PrintW(0xEE11);
+	PrintD(0x11223344);
+
+	return 0;
+}
+*/
+
+
+/* This should be a printf equivalent and not just a ConsoleWrite() wrapper. */
 int Printk(const char *str) {
 	ConsoleWrite(str);
+	/*printf(str);*/
 
 	return 0;
 }
 
-/* Convert byte to ASCII. Make sure buf is at least 2 bytes. */
+
+/* Convert byte to ASCII. */
 char *Hex2Asc(char *buf, int b) {
 	buf[0] = ((b >> 4) & 0x0F) + 0x30;
 	if (buf[0] > '9') buf[0] += 7;

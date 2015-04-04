@@ -10,16 +10,10 @@
 %define GDT_ADDR	0x00800
 %define IDT_ADDR	0x00000
 
-%define SYS_END		0xA0000		; after this follows video ram
+%define SYS_END		0xA0000
 
 
-%define SETUP_LIMIT	0xFFFFF		; XXX is this correct? We start at 0x90000!
-%define VIDEO_LIMIT	0x7FFF
-%define SYS_LIMIT	0xFFFFF		; XXX is this correct? We start at 0x10000!
-%define GDT_LIMIT	0xF7FF
-%define IDT_LIMIT	0x7FF
-
-; mandatory GDT selectors (if GDT organization changes, change here too)
+; Mandatory GDT selectors (if GDT organization changes, change here too)
 %define IDT_SEL		0x0008
 %define GDT_SEL		0x0010
 %define CODE32_SEL	0x0018
@@ -27,9 +21,8 @@
 %define VIDEO_SEL	0x0028
 
 
-; for functions in descriptor.asm
-%define GDT			0
-%define LDT			1
-%define IDT			2
+%define IRQ_BASE	0x20
+%define MAX_IRQ		0x10
+
 
 %endif

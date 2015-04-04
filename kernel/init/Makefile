@@ -11,9 +11,9 @@ INCLUDEFILES = $(INCLUDEDIR)*.h
 all: $(OBJFILES)
 
 
-init.o: init.asm
+init.o: init.asm $(INCLUDEFILES)
 	$(ASM) $(ASMFLAGS) -o $@ $<
 
 
 clean:
-	rm -rf *.o
+	rm -f *.o

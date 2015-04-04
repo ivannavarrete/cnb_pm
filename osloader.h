@@ -1,0 +1,44 @@
+
+; default descriptor flag values for different descriptor types
+D_CODE16	equ		0000000010011001b
+D_CODE32	equ		0100000010011001b
+D_DATA16	equ		0000000010010001b
+D_DATA32	equ		0100000010010001b
+
+;D_INTGATE	equ
+
+
+; descriptor flags
+D_GRANB		equ		0000000000000000b
+D_GRANP		equ		1000000000000000b
+
+D_OPSIZE16	equ		0000000000000000b
+D_OPSIZE32	equ		0100000000000000b
+
+D_DPL3		equ     0000000001100000b
+D_DPL2		equ		0000000001000000b
+D_DPL1		equ		0000000000100000b
+D_DPL0		equ		0000000000000000b
+
+D_USERSEG	equ		0000000000010000b
+D_SYSSEG	equ		0000000000000000b
+
+D_CODESEG	equ		0000000000001000b
+D_DATASEG	equ		0000000000000000b
+
+D_CONFORM	equ		0000000000000100b
+
+D_READ		equ		0000000000000010b			; code descriptors only
+D_WRITE		equ		0000000000000010b			; data descriptors only
+
+
+
+; desc limit, base, flags
+%macro desc 3
+	dw	%1
+	dw	%2
+	db	%2 >> 16
+	db	%3
+	db	(%3 >> 8) + (%1 >> 16)
+	db	%2 >> 24
+%endm

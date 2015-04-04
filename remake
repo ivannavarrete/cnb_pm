@@ -1,0 +1,9 @@
+#!/bin/bash
+
+nasm -f bin bootstrap.asm || exit;
+nasm -f bin osloader.asm || exit;
+nasm -f bin kernel.asm || exit;
+dd if=bootstrap of=/dev/fd0 || exit;
+dd bs=1b seek=1 if=osloader of=/dev/fd0 || exit;
+dd bs=1b seek=4 if=kernel of=/dev/fd0 || exit;
+rm bootstrap osloader kernel || exit;

@@ -1,114 +1,141 @@
 
-%include "descriptor.h"
 %include "config.h"
-
-%define irq_base 0x20
-%define MAX_IRQ 0x10
-
-global request_irq
-global release_irq
-global enable_irq
-global disable_irq
+%include "irq.h"
+%include "descriptor.h"
+%include "debug.h"
 
 
-;=== request_irq ===============================================================
-; int request_irq(int irq, void (*handler)(void), const char *device)
+extern RequestGate
+
+
+global RequestIRQ
+global ReleaseIRQ
+global EnableIRQ
+global DisableIRQ
+
+
+
+	BITS 32
+
+	section .text
+;===[ RequestIRQ ]==============================================================
+; int RequestIRQ(int irqn, int sel, int offs, int type)
 ;===============================================================================
-request_irq:
-.irq:			equ		0x08
-.handler:		equ		0x0C
-.device:		equ		0x10
-	
-	enter	0, 0
-	push	esi, edi, ds, es
+; The type must be D_TSGATE, D_IGATE32 or D_TRGATE32
+;===============================================================================
+RequestIRQ:
+.irqn:			equ	0x08
+.sel:			equ 0x0C
+.offs:			equ	0x10
+.dtype:			equ 0x14
 
+	enter	0, 0
+	push	esi, edi, es
+
+	; allocate irq line
 	mov		eax, -1
-	mov		esi, [ebp+.irq]
-	cmp		esi, MAX_IRQ			; invalid irq line
-	ja		.exit
-	cmp		byte [irq_list+esi], 1		; irq is not available
-	ja		.exit
-	mov		byte [irq_list+esi], 1		; allocate irq line
-	
-	; fix the gate
-	mov		si, DATA32_SEL
-	mov		ds, si
-	mov		esi, int_gate
-	mov		edi, [ebp+.handler]
-	mov		[esi], di
-	shr		edi, 16
-	mov		[esi+6], di
-	; insert new gate into IDT
-	mov		di, IDT_SEL
-	mov		es, di
-	mov		edi, [ebp+.irq]
-	add		edi, irq_base
-	shl		edi, 3
-	movsd
-	movsd
-	
+	mov		esi, [ebp+.irqn]
+	cmp		esi, MAX_IRQ			; check if irq line is valid
+	jae		.exit
+	cmp		byte [irq_list+esi], 0	; check if irq line is available
+	jne		.exit
+	mov		byte [irq_list+esi], 1	; allocate irq line
+
+	; set up IDT vector to point to handler
+	mov		eax, [ebp+.irqn]
+	add		eax, IRQ_BASE
+	push	eax
+	push	dword IDT
+	push	dword [ebp+.dtype]
+	push	dword [ebp+.offs]
+	push	dword [ebp+.sel]
+	call	RequestGate
+	cmp		eax, -1
+	je		.exit					; XXX need to dealloc irq line if error
+
 	xor		eax, eax
 .exit:
-	pop		esi, edi, ds, es
+	pop		esi, edi, es
 	leave
-	ret		0x0C
+	ret		0x10
 
 
-;=== release_irq ===============================================================
-; int release_irq(int irq)
+;===[ ReleaseIRQ ]==============================================================
+; int ReleaseIRQ(int irqn)
 ;===============================================================================
-release_irq:
-.irq:			equ		0x08
-	
-	enter	0, 0
+;
+;===============================================================================
+ReleaseIRQ:
+.irqn:			equ	0x08
 
-	mov		eax, [ebp+.irq]			; free irq line
-	mov		byte [irq_list+eax], 0
-	
+	enter	0, 0
+	push	ebx
+
+	; free irq line
+	mov		eax, -1
+	mov		ebx, [ebp+.irqn]
+	cmp		ebx, MAX_IRQ			; check if irq line is valid
+	jae		.exit
+	mov		byte [irq_list+ebx], 0	; free irq line
+
 	xor		eax, eax
+.exit:
+	pop		ebx
 	leave
 	ret		4
 
 
-;=== enable_irq ================================================================
-; int enable_irq(int irq)
+;===[ EnableIRQ ]===============================================================
+; int EnableIRQ(int irqn)
 ;===============================================================================
-enable_irq:
-.irq:			equ		0x08
+; Enable IRQ line in the PIC.
+;===============================================================================
+EnableIRQ:
+.irqn:			equ 0x08
 
 	enter	0, 0
 	push	ecx
-	
-	mov		al, 0xFE
-	mov		ecx, [ebp+.irq]
-	rol		al, cl
 
-	cmp		ecx, 7
+	; sanity check
+	mov		eax, -1
+	mov		ecx, [ebp+.irqn]
+	cmp		ecx, MAX_IRQ
+	jae		.exit
+
+	; enable irq line
+	mov		ax, 0xFFFE
+	rol		al, cl
+	cmp		cl, 7				; check which controller the line is attached to
 	ja		.10
 	out		0x21, al
-	jmp		.exit
+	jmp		.20
 .10:
 	out		0xA1, al
-
-.exit:
+	
+.20:
 	xor		eax, eax
+.exit:
 	pop		ecx
 	leave
 	ret		4
 
 
-;=== disable_irq ===============================================================
-; int disable_irq(int irq)
+;===[ DisableIRQ ]==============================================================
+; int DisableIRQ(int irqn)
 ;===============================================================================
-disable_irq:
-.irq:			equ		0x08
+; Disable IRQ line in the PIC.
+; <<< not implemented >>>
+;===============================================================================
+DisableIRQ:
+.irqn:			equ 0x08
 
 	enter	0, 0
+
 	mov		eax, -1
+
 	leave
-	ret
+	ret		4
 
 
 	section .data
-int_gate:	gate	CODE32_SEL, 0, 0, D_IGATE32 | D_DPL0
 irq_list:	times MAX_IRQ db 0

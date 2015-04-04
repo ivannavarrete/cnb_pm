@@ -1,45 +1,57 @@
 
 ; The setup code loads the kernel into memory, enables A20, reprograms the PIC,
-; sets up a minimal GDT and a default IDT, switches to pmode, and jumps to
-; kernel init code. The code must not exceed 15 sectors (7680b).
+; sets up a minimal GDT, switches to pmode, and jumps to kernel init code. The
+; setup code must not exceed 15 sectors (7680 bytes).
 
 
 %include "config.h"
-%include "descriptor.h"
-;%include "sysdef.h"
+%include "irq.h"
 %include "debug.h"
 
 
 ; FOR THE LOVE OF GOD, FIX THIS UGLY HACK!!
-%define sectors 18		; sectors/track, must not be greater than 80
-%define heads 1			; max head
-%define startsec 0x11	; start of kernel on disk
+; Maybe these (and some other constants) should be in the bootsector, set to
+; proper values for the disc when the bootsector is created.
+%define sectors 18			; sectors/track, must not be greater than 80
+%define heads 1				; max head
+%define startsec 0x11		; start of kernel on disk
 
 
 	BITS 16
-
 	org 0
 
 	section .text
 start:
-	; init segment regs and stack
+	; clear screen of possible BIOS output (not that important but more clean)
+	mov		ax, VIDEO_ADDR>>4
+	mov		es, ax
+	xor		eax, eax
+	xor		edi, edi
+	mov		ecx, 40*25
+	rep		stosd
+
+	; init segment registers and stack
 	mov		ax, cs
 	mov		ds, ax
 	mov		es, ax
 	mov		ss, ax
 	xor		sp, sp
 
+	; set different video mode
+	mov		ax, 0x001C
+	int		0x10
+
 	call	LoadSys
-	DEBUG	0xB800, 0, 0
+	DEBUG	VIDEO_ADDR>>4, 0, 0, ax
 
 	call	A20Enable
-	DEBUG	0xB800, 1, 1
+	DEBUG	VIDEO_ADDR>>4, 1, 1, ax
 
 	call	InitPIC
-	DEBUG	0xB800, 2, 2
+	DEBUG	VIDEO_ADDR>>4, 2, 2, ax
 
 	call	InitGDT
-	DEBUG	0xB800, 3, 3
+	DEBUG	VIDEO_ADDR>>4, 3, 3, ax
 
 	; enter protected mode
 	mov		eax, cr0
@@ -53,50 +65,40 @@ start:
 	mov		fs, ax
 	mov		gs, ax
 	mov		ss, ax
-	mov		esp, SYSEND-SYS_ADDR
+	mov		esp, SYS_END-SYS_ADDR		; XXX Is this correct?
 
+	; the offset of kernel_init is determined by the linking in the kernel
+	; subdir so make sure it is correct (this file and the kernel are
+	; completely independent so that's why we hardcode the offset here)
 	jmp		CODE32_SEL:0
 
 
-;=== Load Sys ==================================================================
-; This routine is a bit more complex than I would like it to be. This is because
-; we can't read more than one track per int 13, before having to change cyl.
-; More complexity is added by the fact that the read can start in the middle of
-; a track so the rest of it must be read in first, before resorting to full
-; track reads. Furthermore, the destination pointer must be updated after each
-; read with the proper amount of bytes. The one thing this routine can't do
-; is to place the data at an arbitrary memory position.
+;===[ LoadSys ]=================================================================
+; Load kernel into memory.
+; This funcrtion is dependant on the defined values sectors/heads/startsec
+; as well as using the floppy by default, which needs to be fixed later on.
 ;===============================================================================
-;
-; 2000-08-22
-;	This code has bugs. It seems that after reading a full track you should
-;	change cylinder, not head. Ironically, this bug was cancelled out by a
-;	bug in ReadSect. The bug there was that the 'mov ah, 2' instruction
-;	was outside the read loop. It would try to read sectors the first time
-;	but upon failure it would reset the disc controller and return to the
-;	read, still with ah=0, which would reset again and report no error.
-;	In short, even if the read fails the code doesn't notice.
-;	I am not 100% sure of the above ... This cnb version is abandoned anyway ...
-;
 LoadSys:
-	mov		di, 8					; load 512K from disk (8 read loops)
+	mov		di, 8					; load 512k from disk (8 read loops)
 
 	mov		bx, SYS_ADDR>>4			; es:bx is system start (0x1000:0000)
-	mov		es, bx					; don't put sys start at non-64K boundary
-	xor		bx, bx					; or else the code wont work (yet)
+	mov		es, bx					; don't put sys start at non-64k boundary
+	xor		bx, bx					; or else the code won't work (int 0x13)
 
-	mov		bp, 0x80				; read 64K per loop
+	mov		bp, 0x80				; read 64k in each loop
 
-	mov		ax, sectors+1-startsec	; read up to beginning of next track
+	; read up to beginning of next track
+	mov		ax, sectors+1-startsec
 	mov		cx, startsec
 	xor		dx, dx					; head 0, drive 0 (floppy)
 	call	ReadSect
 	sub		bp, ax
 	add		bx, (sectors+1-startsec)*0x200
-	
-	mov		cx, 0x0001
-.read:								; here we read one track at a time
-	mov		ax, sectors				; xcept for possibly the last read
+
+	; read one track at a time (xcept for possibly the last read)
+	mov		cx, 0x0001				; start sector (on track)
+.read:
+	mov		ax, sectors				; number of sectors per track
 	cmp		bp, ax
 	ja		.10
 	mov		ax, bp
@@ -116,25 +118,28 @@ LoadSys:
 	or		bp, bp
 	jnz		.read
 
-	call	FloppyOff
+	call	KillFloppy
 
 	ret
 
 
-;=== ReadSect ==================================================================
-; es:bx		destination buffer (don't cross 64k boundary)
-; cx		cylinder, sector
-; dx		head, drive
-; al		sectors to read (no more than one track)
+;===[ ReadSect ]================================================================
+; Read sectors.
+;
+; input:
+;	es:bx		destination buffer (don't cross 64k boundary)
+;	cx			cylinder, sector
+;	dx			head, drive
+;	al			sectors to read (no more than one track)
 ;===============================================================================
 ReadSect:
 	push	ax, si
-	
-	mov		si, 4					; retry 4 times
+
+	mov		si, 4				; retry 4 times
 .read:
 	; read sectors
-	mov		ah, 0x02
-	push	ax						; al can get fucked up sometimes, so save it
+	mov		ah, 0x02			; read sectors function
+	push	ax					; al can get fucked up sometimes, so save it
 	int		0x13
 	pop		ax
 	jnc		.exit
@@ -143,8 +148,8 @@ ReadSect:
 	int		0x13
 	dec		si
 	jnz		.read
-	; too many failures, halt exeution
-	call	FloppyOff
+	; to many failures, halt execution
+	call	KillFloppy
 	jmp		Halt16
 
 .exit:
@@ -152,18 +157,22 @@ ReadSect:
 	ret
 
 
-;=== FloppyOff =================================================================
-FloppyOff:
-	mov		dx, 0x3F2				; kill floppy motor
+;===[ KillFloppy ]==============================================================
+; Kill floppy motor.
+;===============================================================================
+KillFloppy:
+	mov		dx, 0x3F2
 	xor		al, al
 	out		dx, al
 	ret
-	
-	
-;=== A20Enable =================================================================
+
+
+;===[ A20Enable ]===============================================================
+; Enable address line 20.
+;===============================================================================
 A20Enable:
 	push	ds, es
-	
+
 	xor		ax, ax
 	mov		ds, ax
 	dec		ax
@@ -171,6 +180,7 @@ A20Enable:
 
 	call	A20Test
 	jz		.done
+
 	mov		al, 0xD1
 	out		0x64, al
 	mov		cx, 0x8000
@@ -179,6 +189,7 @@ A20Enable:
 	out		0x60, al
 	mov		cx, 0x8000
 	loop	$
+
 	call	A20Test
 	jz		.done
 	jmp		Halt16
@@ -187,39 +198,53 @@ A20Enable:
 	pop		ds, es
 	ret
 
+
+;===[ A20Test ]=================================================================
+; Test whether address line 20 is masked or not. This is done by reading a byte
+; at address 0x00000 and then writing a different byte at address 0x10000. If
+; after the write the byte at address 0x00000 changed it means that 0x10000 is
+; the same address as 0x00000, i.e. address line 20 is masked.
+;
+; output:
+;	EFlag[Z] set	= Addr[20] enabled
+;	EFlag[Z] clear	= Addr[20] disabled
+;===============================================================================
 A20Test:
 	mov		al, [0]
 	mov		ah, al
 	xor		al, 0xFF
-	xchg	[es:0x10], al
-	cmp		[0], ah				; if zf=1 then A20 enabled
-	mov		[es:0x10], al
+	xchg	al, [es:10]			; write al at 0x00000 or 0x10000
+	cmp		ah, [0]				; this sets/clears EFlags[Z]
+	mov		[es:10], al
 	ret
+	
 
-
-;=== InitPIC ===================================================================
+;===[ InitPIC ]=================================================================
+; Initialize Programmable Interrupt Controller. Set external interrupt vectors
+; to IRQ0-IRQ15 = vector0x20-vector0x2F. Mask and disable all interrupts. Etc.
+;===============================================================================
 InitPIC:
 	cli
 
 	; ICW1
-	mov		al, 0x11			; cascaded PICs, edge triggered, will send ICW4
+	mov		al, 0x11			; cascaded PIC, edge triggered, will send ICW4
 	out		0x20, al
 	out		0xA0, al
 	; ICW2
-	mov		al, 0x20			; PIC1 vectors = 32-39
-	out		0x21, al			; PIC2 vectors = 40-47
-	mov		al, 0x28
+	mov		al, IRQ_BASE		; PIC1 vectors = 32-39
+	out		0x21, al
+	mov		al, IRQ_BASE+8		; PIC2 vectors = 40-47
 	out		0xA1, al
 	; ICW3
-	mov		al, 0x04			; PIC1 = IR2 connected to slave
-	out		0x21, al			; PIC2 = slave ID 2
-	mov		al, 0x02
+	mov		al, 0x04			; PIC1 = IRQ2 connected to slave
+	out		0x21, al
+	mov		al, 0x02			; PIC2 = slave ID 2
 	out		0xA1, al
 	; ICW4
-	mov		al, 0x01			; not specially fully nested mode, 8086 mode
+	mov		al, 0x01			; not specially fully nested mode, 8086 mode,
 	out		0x21, al			; non-buffered mode, normal EOI
 	out		0xA1, al
-	
+
 	; OCW1 - mask all interrupts
 	mov		al, 0xFF
 	out		0x21, al
@@ -228,15 +253,16 @@ InitPIC:
 	ret
 
 
-;=== Halt16 ====================================================================
+;===[ Halt16 ]==================================================================
 Halt16:
 	jmp		$
 
 
 	BITS 32
-;=== Halt32 ====================================================================
+;===[ Halt32 ]==================================================================
 Halt32:
 	jmp		$
+
 
 
 %include "gdt.asm"

@@ -2,33 +2,38 @@
 INCLUDEDIR = ../../include/
 
 ASM = nasm
-ASMFLAGS = -f elf -i$(INCLUDEDIR)
-CC = gcc
-CFLAGS = -c -O2 -Wall -I$(INCLUDEDIR)
+ASMFLAGS = -f elf -P/usr/include/nasm/nasm.h -i$(INCLUDEDIR)
 
-
-OBJFILES = irq.o io.o dma.o desc.o idt.o console.o
+OBJFILES = idt.o gdt.o irq.o descriptor.o ll.o console.o
 INCLUDEFILES = $(INCLUDEDIR)*.h
 
 
 all: $(OBJFILES)
 
 
-irq.o: irq.asm $(INCLUDEFILES)
+gdt.o: gdt.asm
 	$(ASM) $(ASMFLAGS) -o $@ $<
 
 
-desc.o: desc.asm $(INCLUDEFILES)
+idt.o: idt.asm
 	$(ASM) $(ASMFLAGS) -o $@ $<
 
 
-idt.o: idt.asm $(INCLUDEFILES)
+irq.o: irq.asm
 	$(ASM) $(ASMFLAGS) -o $@ $<
 
 
-console.o: console.asm $(INCLUDEFILES)
+descriptor.o: descriptor.asm
+	$(ASM) $(ASMFLAGS) -o $@ $<
+
+
+ll.o: ll.asm
+	$(ASM) $(ASMFLAGS) -o $@ $<
+
+
+console.o: console.asm
 	$(ASM) $(ASMFLAGS) -o $@ $<
 
 
 clean:
-	rm -f *.o
+	rm -rf *.o

@@ -1,0 +1,10 @@
+
+2004-06-20
+
+This version builds heavily on 0.0.7. Not much changes. Hopefully the
+task switch mechanism will be fixed in this version and paging will
+be implemented.
+
+
+All C-code must be compiled with functions saving the registers they are using
+(-fcall-saved-reg option in gcc, or maybe there is a better way).

@@ -2,8 +2,7 @@
 INCLUDEDIR = ../../include/
 
 ASM = nasm
-ASMFLAGS = -f elf -i$(INCLUDEDIR)
-
+ASMFLAGS = -f elf -P/usr/include/nasm/nasm.h -i$(INCLUDEDIR)
 
 OBJFILES = sched.o
 INCLUDEFILES = $(INCLUDEDIR)*.h
@@ -16,5 +15,9 @@ sched.o: sched.asm $(INCLUDEFILES)
 	$(ASM) $(ASMFLAGS) -o $@ $<
 
 
+#task.o: task.asm $(INCLUDEFILES)
+#	$(ASM) $(ASMFLAGS) -o $@ $<
+
+
 clean:
-	rm -f *.o
+	rm -rf *.o

@@ -2,7 +2,7 @@
 INCLUDEDIR = ../include/
 
 ASM = nasm
-ASMFLAGS = -f bin -i$(INCLUDEDIR)
+ASMFLAGS = -f bin -P/usr/include/nasm/nasm.h -i$(INCLUDEDIR)
 
 
 OBJFILES = bootsect.o setup.o
@@ -16,7 +16,7 @@ bootsect.o: bootsect.asm $(INCLUDEFILES)
 	$(ASM) $(ASMFLAGS) -o $@ $<
 
 
-setup.o: setup.asm gdt.asm $(INCLUDEFILES)
+setup.o: setup.asm $(INCLUDEFILES)
 	$(ASM) $(ASMFLAGS) -o $@ $<
 
 
@@ -26,6 +26,7 @@ setup.img: all
 	dd if=setup.o of=setup.img bs=1b seek=1 count=15 conv=notrunc
 	sync
 
-
 clean:
-	rm -f *\.o setup.img
+	rm -rf *\.o
+
+

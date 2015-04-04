@@ -30,7 +30,7 @@
 %define D_ST_DWY	0000000000000010b		; seg type - data read/write
 %define D_ST_DWN	0000000000000000b		; seg type - data read only
 %define D_ST_CCY	0000000000000100b		; seg type - code conforming
-%define D_ST_CCN	0000000000000000b		; seg type - code not conforming
+%define D_ST_CCN	0000000000000000b		; seg type - code non-conforming
 %define D_ST_CRY	0000000000000010b		; seg type - code read/exec
 %define D_ST_CRN	0000000000000000b		; seg type - code exec only
 %define D_ST_AY		0000000000000001b		; seg type - accessed
@@ -44,7 +44,7 @@
 %define D_ST_BTSS	0000000000000011b		; seg type - busy TSS
 %define D_ST_CG		0000000000000100b		; seg type - call gate
 %define D_ST_TSG	0000000000000101b		; seg type - task gate
-%define D_ST_IG		0000000000000110b		; seg type - int gate
+%define D_ST_IG		0000000000000110b		; seg type - interrupt gate
 %define D_ST_TRG	0000000000000111b		; seg type - trap gate
 
 ; some default half-build descriptor flags (for easier descriptor building)
@@ -54,37 +54,41 @@
 %define D_DATA32	D_B32 | D_PY | D_SN | D_ST_D
 %define D_TSS16		D_PY | D_SY | D_ST_16 | D_ST_ATSS
 %define D_TSS32		D_PY | D_SY | D_ST_32 | D_ST_ATSS
+;%define D_LDT		...
 
-%define D_CGATE16	D_PY | D_SY | D_ST_16 | D_ST_CG
-%define D_CGATE32	D_PY | D_SY | D_ST_32 | D_ST_CG
 %define D_IGATE16	D_PY | D_SY | D_ST_16 | D_ST_IG
 %define D_IGATE32	D_PY | D_SY | D_ST_32 | D_ST_IG
+%define D_TRGATE16	D_PY | D_SY | D_ST_16 | D_ST_TRG
+%define D_TRGATE32	D_PY | D_SY | D_ST_32 | D_ST_TRG
+%define D_CGATE16	D_PY | D_SY | D_ST_16 | D_ST_CG
+%define D_CGATE32	D_PY | D_SY | D_ST_32 | D_ST_CG
 %define D_TSGATE	D_PY | D_SY | D_ST_TSG
 
 
-; %1	segment base (32-bit)
-; %2	segment limit (20-bit)
-; %3	flags (16-bit (packed to 12 in desc))
+; Macro for easy definition of segment descriptors.
+; (%1)		segment base (32-bit)
+; (%2)		segment limit (20-bit)
+; (%3)		segment attributes (16-bit, packed to 12-bit in desc)
 %macro desc 3
-	dw	(%2)										; limit 15:0
-	dw	(%1)										; base 15:0
-	db	((%1) >> 16) & 0xFF							; base 16:23
-	db	(%3) & 0xFF									; flags 7:0
-	db	(((%2)>>16) & 0x0F) | (((%3)>>8) & 0xF0)	; flags 11:8, limit 19:16
-	db	(%1) >> 24									; base 31:24
+	dw	(%2) & 0xFFFF								; limit 15:0
+	dw	(%1) & 0xFFFF								; base 15:0
+	db	((%1)>>16) & 0xFF							; base 16:23
+	db	(%3) & 0xFF									; attr 7:0
+	db	(((%2)>>16) & 0x0F) | (((%3)>>8) & 0xFF)	; attr 11:8, limit 19:16
+	db	(%1)>>24									; base 31:24
 %endmacro
 
 
-; %1	segment selector (16-bit)
-; %2	offset (32-bit)
-; %3	dword count / reserved
-; %4	flags
-%macro gate 4
-	dw	(%2)
+; Macro for easy definition of gate descriptors.
+; (%1)		segment selector (16-bit)
+; (%2)		offset (32-bit)
+; (%3)		flags
+%macro gate 3
+	dw	(%2) & 0xFFFF
 	dw	(%1)
-	db	(%3)
-	db	(%4)
-	dw	(%2) >> 16
+	db	0						; XXX not correct for call gate! (or is it?)
+	db	(%3) & 0xFF
+	dw	(%2)>>16
 %endmacro
 
 

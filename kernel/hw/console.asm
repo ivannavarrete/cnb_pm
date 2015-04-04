@@ -1,47 +1,59 @@
-
+; Here is the dilemma. Ultimately we would want to have access to the console
+; through a proper driver handled by the driver subsystem. However, we can't
+; set this up since the driver subsystem requires large parts of the kernel
+; to be up and running (mem manager, etc.) and we want to be able to
+; have simple output in the early stages of kernel init mostly for debugging
+; purposes. Oh, and also, we don't have a driver subsystem yet! haha..
 ; This module is buggy, incomplete and untested. Beware..
 
 
 %include "config.h"
 
 
-global InitConsole
-global ClearScreen
-global ConsoleWrite
-global GotoXY
-global SetMode
-global ScrollUp
-global ScrollDown
+global InitConsole:function
+global ClearScreen:function
+global ConsoleWrite:function
+global GotoXY:function
+global SetMode:function
+global ScrollUp:function
+global ScrollDown:function
 
 
 	section .text
-;=== InitConsole ===============================================================
+;===[ InitConsole ]=============================================================
 ; int InitConsole(int scr_mode, int attr)
 ;===============================================================================
 ; need to implement mode setup
+;===============================================================================
 InitConsole:
 .scr_mode:			equ		0x08
 .attr:				equ		0x0C
 
 	enter	0, 0
-	push	eax, ebx
+	push	ebx
 
-	mov		ax, 25
-	mov		bx, 80
+	; initialize console variables
+	mov		eax, 25
+	mov		ebx, 80
 	mov		[rows], eax
 	mov		[cols], ebx
 	mul		bx
 	mov		[cells], eax
 	mov		eax, [ebp+.attr]
 	mov		byte [attr], al
-	xor		eax, eax
 
-	pop		eax, ebx
+	; set x,y position
+	push	dword 2
+	push	dword 0
+	call	GotoXY
+
+	xor		eax, eax,
+	pop		ebx
 	leave
 	ret		8
 
 
-;=== ClearScreen ===============================================================
+;===[ ClearScreen ]=============================================================
 ; void ClearScreen(void)
 ;===============================================================================
 ClearScreen:
@@ -53,16 +65,16 @@ ClearScreen:
 	mov		ecx, [cells]
 	xor		ax, ax
 	rep		stosw
-
+	
 	pop		eax, ecx, edi, es
 	ret
 
 
-;=== ConsoleWrite ==============================================================
+;===[ ConsoleWrite ]============================================================
 ; void ConsoleWrite(const char *str)
 ;===============================================================================
 ConsoleWrite:
-.str:			equ		0x08
+.str:				equ		0x08
 
 	enter	0, 0
 	push	eax, ebx, edx, esi, edi, es
@@ -84,7 +96,7 @@ ConsoleWrite:
 
 .write:
 	lodsb
-	cmp		al, 0xA				; handle newline
+	cmp		al, 0x0A				; handle newline
 	jne		.10
 	mov		eax, [cols]
 	sub		al, bl
@@ -92,9 +104,9 @@ ConsoleWrite:
 	add		edi, eax
 	jmp		.49
 .10:
-	or		al, al				; handle null
+	or		al, al					; handle NULL
 	je		.exit
-	
+
 	mov		ah, [attr]
 	stosw
 	inc		bl
@@ -123,12 +135,12 @@ ConsoleWrite:
 	ret		4
 
 
-;=== GotoXY ====================================================================
+;===[ GotoXY ]==================================================================
 ; void GotoXY(int x, int y)
 ;===============================================================================
 GotoXY:
-.x:				equ		0x08
-.y:				equ		0x0C
+.x:					equ		0x08
+.y:					equ		0x0C
 
 	enter	0, 0
 	push	eax
@@ -143,107 +155,45 @@ GotoXY:
 	ret		8
 
 
-;=== SetMode ===================================================================
-; int SetMode(int scr_mode, int attr)
+;===[ SetMode ]=================================================================
+; int SetMode(int src_mode, int attr)
 ;===============================================================================
-; not implemented
 SetMode:
-.scr_mode:			equ		0x08
+.src_mode:			equ		0x08
 .attr:				equ		0x0C
 
 	enter	0, 0
 
-	mov		eax, -1
+	mov		eax, [ebp+.attr]
+	mov		byte [attr], al
 
+	xor		eax, eax
 	leave
 	ret		8
+	
 
-
-;=== ScrollUp ==================================================================
+;===[ ScrollUp ]================================================================
 ; void ScrollUp(void)
 ;===============================================================================
+; not implemented
 ScrollUp:
-	push	eax, ebx, ecx, esi, edi, es
-	push	ds
 
-	; esi=next to last row, edi=last row
-	mov		edi, [cells]
-	mov		esi, edi
-	sub		si, [cols]
-	
-	; cl=num cols to move/row, al=num rows to move
-	mov		ecx, [cols]
-	mov		eax, -1
-	add		ax, [rows]
-	mov		ah, cl				; for fast cols access
-
-	mov		bx, VIDEO_SEL
-	mov		ds, bx
-	mov		es, bx
-	; scroll screen
-	std
-.scroll:
-	rep		movsw
-	dec		al
-	jz		.scroll_done
-	mov		cl, ah
-	jmp		.scroll
-
-	; update current position
-.scroll_done:
-	pop		ds
-	mov		dword [x], 0
-	mov		dword [y], 0
-
-	pop		eax, ebx, ecx, esi, edi, es
 	ret
+	
 
-
-;=== ScrollDown ================================================================
+;===[ ScrollDown ]==============================================================
 ; void ScrollDown(void)
 ;===============================================================================
-; doesn't work (GPF)
+; not implemented
 ScrollDown:
-	push	eax, ebx, ecx, esi, edi, es
-	push	ds
 
-	; number of rows to move
-	mov		eax, -1
-	add		ax, [rows]
-
-	; esi=row2, edi=row1
-	xor		edi, edi
-	mov		ecx, [cols]
-	mov		esi, ecx
-	mov		ah, cl				; save cols in register for fast access
-
-	mov		bx, VIDEO_SEL
-	mov		ds, bx
-	mov		es, bx
-	; scroll screen
-	cld
-.scroll:
-	rep		movsw
-	dec		al
-	jz		.scroll_done
-	mov		cl, ah
-	jmp		.scroll
-
-	; update current position
-.scroll_done:
-	pop		ds
-	mov		eax, [rows]
-	dec		eax
-	mov		[y], eax
-	mov		dword [x], 0
-
-	pop		eax, ebx, ecx, esi, edi, es
 	ret
+
 
 
 	section .data
-; x, y, rows, and cols *must not* exceed 0xFF. They're dwords for easier
-; computing when using word-only regs (si, di, ...)
+; x, y, rows and cols must not exceed 0xFF. They are dwords for easier
+; computing when using word only regs (si, di, ...)
 x:				dd	0
 y:				dd	0
 
@@ -252,3 +202,4 @@ cols:			dd	0
 cells:			dd	0
 
 attr:			db	0
+
